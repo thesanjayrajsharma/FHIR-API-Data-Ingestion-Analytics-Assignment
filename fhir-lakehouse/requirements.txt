@@ -1,0 +1,6 @@
+# Runtime deps already present on Databricks serverless: requests, pyyaml, delta
+# Only needed for local tests / the offline extractor:
+requests>=2.31
+pyyaml>=6
+pyspark==3.5.3
+pytest>=8

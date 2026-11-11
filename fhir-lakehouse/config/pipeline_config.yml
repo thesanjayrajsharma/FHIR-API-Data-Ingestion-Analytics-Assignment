@@ -1,0 +1,26 @@
+# Single source of truth for the pipeline. Nothing below is hard-coded in code.
+fhir:
+  base_url: https://hapi.fhir.org/baseR4
+  page_size: 100            # _count per page
+  timeout_seconds: 60
+  max_retries: 5
+  backoff_seconds: 2        # exponential: 2, 4, 8 ...
+  max_pages_per_run: 0      # 0 = unlimited. Set e.g. 25 while developing (public server is large)
+  accept: application/fhir+json
+
+storage:
+  catalog: workspace        # Free Edition default catalog
+  schemas:
+    raw: fhir_raw           # holds the Volume only
+    bronze: fhir_bronze
+    silver: fhir_silver
+    gold: fhir_gold
+    ctrl: fhir_ctrl         # audit / watermark / control tables
+  raw_volume: landing
+
+# Order matters: this is the orchestration order (Patient -> Encounter -> Observation -> Condition)
+resources:
+  - name: Patient
+  - name: Encounter
+  - name: Observation
+  - name: Condition
