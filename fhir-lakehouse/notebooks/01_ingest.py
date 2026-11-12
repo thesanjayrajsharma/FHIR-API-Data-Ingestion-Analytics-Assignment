@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "6"
+# ///
 # MAGIC %md
 # MAGIC # 01 · Ingest one resource: API → Raw → Bronze
 # MAGIC * **Raw**: every Bundle page saved byte-for-byte to `/Volumes/.../landing/<resource>/load_date=YYYY-MM-DD/`
@@ -8,6 +12,7 @@
 # MAGIC Parameters: `resource`, `load_date` (blank = yesterday UTC), `mode` (daily|incremental), `source` (api|landing), `run_id` (blank = generated)
 
 # COMMAND ----------
+
 import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..", "src")))   # repo/src on the path
 from fhir_lakehouse.config import load_config
@@ -33,11 +38,16 @@ if mp:
                       overrides={"fhir.max_pages_per_run": int(mp)})
 
 # COMMAND ----------
+
 result = ingest_resource(spark, cfg, resource, load_date, run_id,
                          mode=dbutils.widgets.get("mode"), source=dbutils.widgets.get("source"))
 print(result)
 
 # COMMAND ----------
+
 display(spark.sql(f"""
   SELECT stage, resource, status, rows_in, rows_out, details, started_at, ended_at
   FROM {cfg.table('ctrl','pipeline_run_log')} WHERE run_id = '{run_id}' AND resource = '{resource}' ORDER BY started_at"""))
+
+# COMMAND ----------
+

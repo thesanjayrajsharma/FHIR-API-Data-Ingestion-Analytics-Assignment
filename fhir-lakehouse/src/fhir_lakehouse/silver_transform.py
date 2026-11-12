@@ -12,11 +12,11 @@ REF_ID = lambda col, typ: F.expr(f"nullif(regexp_extract({col}, '{typ}/([^/?#]+)
 
 
 def _first_coding(cc: str, field: str) -> Column:
-    return F.expr(f"{cc}.coding[0].{field}")
+    return F.expr(f"get({cc}.coding, 0).{field}")
 
 
 def _cc_text(cc: str) -> Column:
-    return F.expr(f"coalesce({cc}.coding[0].display, {cc}.text)")
+    return F.expr(f"coalesce(get({cc}.coding, 0).display, {cc}.text)")
 
 
 def _patient(p: str) -> Dict[str, Column]:
@@ -26,18 +26,18 @@ def _patient(p: str) -> Dict[str, Column]:
         "gender": F.lower(F.col(f"{p}.gender")),
         "birth_date": DT(f"{p}.birthDate"),
         "is_deceased": F.expr(f"coalesce({p}.deceasedBoolean, {p}.deceasedDateTime is not null)"),
-        "family_name": F.expr(f"{p}.name[0].family"),
-        "given_name": F.expr(f"{p}.name[0].given[0]"),
-        "full_name": F.expr(f"nullif(trim(concat_ws(' ', array_join({p}.name[0].given, ' '), {p}.name[0].family)), '')"),
-        "phone": F.expr(f"filter({p}.telecom, x -> x.system = 'phone')[0].value"),
-        "email": F.expr(f"filter({p}.telecom, x -> x.system = 'email')[0].value"),
-        "address_line": F.expr(f"{p}.address[0].line[0]"),
-        "city": F.expr(f"{p}.address[0].city"),
-        "state": F.expr(f"{p}.address[0].state"),
-        "postal_code": F.expr(f"{p}.address[0].postalCode"),
-        "country": F.expr(f"{p}.address[0].country"),
-        "marital_status": F.expr(f"coalesce({p}.maritalStatus.coding[0].code, {p}.maritalStatus.text)"),
-        "language": F.expr(f"{p}.communication[0].language.coding[0].code"),
+        "family_name": F.expr(f"get({p}.name, 0).family"),
+        "given_name": F.expr(f"get(get({p}.name, 0).given, 0)"),
+        "full_name": F.expr(f"nullif(trim(concat_ws(' ', array_join(get({p}.name, 0).given, ' '), get({p}.name, 0).family)), '')"),
+        "phone": F.expr(f"get(filter({p}.telecom, x -> x.system = 'phone'), 0).value"),
+        "email": F.expr(f"get(filter({p}.telecom, x -> x.system = 'email'), 0).value"),
+        "address_line": F.expr(f"get(get({p}.address, 0).line, 0)"),
+        "city": F.expr(f"get({p}.address, 0).city"),
+        "state": F.expr(f"get({p}.address, 0).state"),
+        "postal_code": F.expr(f"get({p}.address, 0).postalCode"),
+        "country": F.expr(f"get({p}.address, 0).country"),
+        "marital_status": F.expr(f"coalesce(get({p}.maritalStatus.coding, 0).code, {p}.maritalStatus.text)"),
+        "language": F.expr(f"get(get({p}.communication, 0).language.coding, 0).code"),
         "managing_org_id": REF_ID(f"{p}.managingOrganization.reference", "Organization"),
     }
 
@@ -49,16 +49,16 @@ def _encounter(p: str) -> Dict[str, Column]:
         "status": F.col(f"{p}.status"),
         "class_code": F.expr(f"{p}.class.code"),
         "class_display": F.expr(f"{p}.class.display"),
-        "type_code": F.expr(f"{p}.type[0].coding[0].code"),
-        "type_display": _cc_text(f"{p}.type[0]"),
+        "type_code": F.expr(f"get(get({p}.type, 0).coding, 0).code"),
+        "type_display": _cc_text(f"get({p}.type, 0)"),
         "period_start": TS(f"{p}.period.start"),
         "period_end": TS(f"{p}.period.end"),
         "duration_minutes": F.expr(
             f"CASE WHEN try_cast({p}.period.end as timestamp) IS NOT NULL AND try_cast({p}.period.start as timestamp) IS NOT NULL "
             f"THEN (unix_timestamp(try_cast({p}.period.end as timestamp)) - unix_timestamp(try_cast({p}.period.start as timestamp)))/60.0 END"),
-        "practitioner_id": REF_ID(f"{p}.participant[0].individual.reference", "Practitioner"),
-        "reason_code": F.expr(f"{p}.reasonCode[0].coding[0].code"),
-        "reason_display": _cc_text(f"{p}.reasonCode[0]"),
+        "practitioner_id": REF_ID(f"get({p}.participant, 0).individual.reference", "Practitioner"),
+        "reason_code": F.expr(f"get(get({p}.reasonCode, 0).coding, 0).code"),
+        "reason_display": _cc_text(f"get({p}.reasonCode, 0)"),
         "service_provider_id": REF_ID(f"{p}.serviceProvider.reference", "Organization"),
     }
 
@@ -69,21 +69,21 @@ def _observation(p: str) -> Dict[str, Column]:
         "patient_id": REF_ID(f"{p}.subject.reference", "Patient"),
         "encounter_id": REF_ID(f"{p}.encounter.reference", "Encounter"),
         "status": F.col(f"{p}.status"),
-        "category_code": F.expr(f"{p}.category[0].coding[0].code"),
-        "code_system": F.expr(f"{p}.code.coding[0].system"),
-        "code": F.expr(f"{p}.code.coding[0].code"),
+        "category_code": F.expr(f"get(get({p}.category, 0).coding, 0).code"),
+        "code_system": F.expr(f"get({p}.code.coding, 0).system"),
+        "code": F.expr(f"get({p}.code.coding, 0).code"),
         "code_display": _cc_text(f"{p}.code"),
         "effective_ts": F.expr(f"coalesce(try_cast({p}.effectiveDateTime as timestamp), try_cast({p}.effectivePeriod.start as timestamp))"),
         "issued_ts": TS(f"{p}.issued"),
         "value_number": F.expr(f"coalesce({p}.valueQuantity.value, cast({p}.valueInteger as double))"),
         "value_unit": F.expr(f"{p}.valueQuantity.unit"),
-        "value_text": F.expr(f"coalesce({p}.valueString, {p}.valueCodeableConcept.text, {p}.valueCodeableConcept.coding[0].display)"),
+        "value_text": F.expr(f"coalesce({p}.valueString, {p}.valueCodeableConcept.text, get({p}.valueCodeableConcept.coding, 0).display)"),
         "value_boolean": F.col(f"{p}.valueBoolean"),
         "value_type": F.expr(
             f"CASE WHEN {p}.valueQuantity IS NOT NULL THEN 'quantity' WHEN {p}.valueInteger IS NOT NULL THEN 'integer' "
             f"WHEN {p}.valueString IS NOT NULL THEN 'string' WHEN {p}.valueCodeableConcept IS NOT NULL THEN 'codeable' "
             f"WHEN {p}.valueBoolean IS NOT NULL THEN 'boolean' ELSE 'none' END"),
-        "interpretation_code": F.expr(f"{p}.interpretation[0].coding[0].code"),
+        "interpretation_code": F.expr(f"get(get({p}.interpretation, 0).coding, 0).code"),
     }
 
 
@@ -92,12 +92,12 @@ def _condition(p: str) -> Dict[str, Column]:
         "condition_id": F.col(f"{p}.id"),
         "patient_id": REF_ID(f"{p}.subject.reference", "Patient"),
         "encounter_id": REF_ID(f"{p}.encounter.reference", "Encounter"),
-        "clinical_status": F.expr(f"{p}.clinicalStatus.coding[0].code"),
-        "verification_status": F.expr(f"{p}.verificationStatus.coding[0].code"),
-        "category_code": F.expr(f"{p}.category[0].coding[0].code"),
+        "clinical_status": F.expr(f"get({p}.clinicalStatus.coding, 0).code"),
+        "verification_status": F.expr(f"get({p}.verificationStatus.coding, 0).code"),
+        "category_code": F.expr(f"get(get({p}.category, 0).coding, 0).code"),
         "severity": _cc_text(f"{p}.severity"),
-        "code_system": F.expr(f"{p}.code.coding[0].system"),
-        "code": F.expr(f"{p}.code.coding[0].code"),
+        "code_system": F.expr(f"get({p}.code.coding, 0).system"),
+        "code": F.expr(f"get({p}.code.coding, 0).code"),
         "code_display": _cc_text(f"{p}.code"),
         "onset_ts": TS(f"{p}.onsetDateTime"),
         "abatement_ts": TS(f"{p}.abatementDateTime"),

@@ -7,6 +7,7 @@
 # MAGIC If it cannot, use the offline path described in the README (§ "If outbound internet is blocked").
 
 # COMMAND ----------
+
 import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..", "src")))   # repo/src on the path
 from fhir_lakehouse.config import load_config
@@ -16,6 +17,7 @@ create_objects(spark, cfg)
 display(spark.sql(f"SHOW SCHEMAS IN {cfg.catalog}").where("databaseName like 'fhir_%'"))
 
 # COMMAND ----------
+
 # Connectivity smoke test (fails fast with a clear message)
 import requests
 try:

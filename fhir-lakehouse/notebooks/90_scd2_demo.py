@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "6"
+# ///
 # MAGIC %md
 # MAGIC # 90 · SCD Type 2 live demo (for the interview)
 # MAGIC The public HAPI server rarely changes a record inside a 3-day window, so to *prove* the versioning logic we replay a **real Patient
@@ -6,6 +10,7 @@
 # MAGIC Then we show the history rows. Nothing is written to the public server.
 
 # COMMAND ----------
+
 import os, sys, json
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..", "src")))
 from datetime import datetime, timezone, date
@@ -17,12 +22,14 @@ from fhir_lakehouse.silver import run_silver
 cfg = load_config(os.path.abspath(os.path.join(os.getcwd(), "..", "config", "pipeline_config.yml")))
 
 # COMMAND ----------
+
 # 1) pick a current patient and show its history BEFORE
 row = spark.table(cfg.table("silver", "patient")).where("is_current AND city IS NOT NULL").orderBy("patient_id").first()
 pid = row.patient_id
 display(spark.sql(f"SELECT patient_id, scd_version, valid_from, valid_to, is_current, city, phone FROM {cfg.table('silver','patient')} WHERE patient_id = '{pid}' ORDER BY valid_from"))
 
 # COMMAND ----------
+
 # 2) craft version N+1 of that resource (same id, changed attributes, newer meta.lastUpdated)
 src = json.loads(spark.table(cfg.table("bronze", "Patient")).where(f"resource_id = '{pid}'").orderBy("last_updated", ascending=False).first().resource_json)
 now = datetime.now(timezone.utc)
@@ -46,5 +53,6 @@ print(ingest_resource(spark, cfg, "Patient", ld, run_id, mode="daily", source="l
 print(run_silver(spark, cfg, "Patient", run_id))
 
 # COMMAND ----------
+
 # 3) history AFTER: old row closed (valid_to set, is_current=false), new row current with scd_version+1
 display(spark.sql(f"SELECT patient_id, scd_version, valid_from, valid_to, is_current, city, phone, api_url_or_params FROM {cfg.table('silver','patient')} WHERE patient_id = '{pid}' ORDER BY valid_from"))

@@ -1,10 +1,15 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "6"
+# ///
 # MAGIC %md
 # MAGIC # 05 · Backfill driver (the 2–3 day incremental load)
 # MAGIC For each day D: **Patient → Encounter → Observation → Condition** (extract+bronze), then Silver → Gold → Validate.
 # MAGIC Uses `dbutils.notebook.run`, so it works even where Jobs are unavailable. The Workflow in `workflows/` does the same thing as a DAG.
 
 # COMMAND ----------
+
 import os, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..", "src")))   # repo/src on the path
 from fhir_lakehouse.config import load_config
@@ -28,6 +33,7 @@ NB = {"ingest": "./01_ingest", "silver": "./02_silver", "gold": "./03_gold", "va
 TIMEOUT = 3600
 
 # COMMAND ----------
+
 for i in range(days):
     d = (start + timedelta(days=i)).isoformat()
     run_id = dbutils.widgets.get("landing_run_id").strip() if source == "landing" else f"bf-{d.replace('-', '')}-{uuid4().hex[:6]}"
